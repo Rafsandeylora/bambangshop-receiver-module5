@@ -84,6 +84,31 @@ This is the place for you to write reflections:
 
 ### Mandatory (Subscriber) Reflections
 
-#### Reflection Subscriber-1
+## Reflection Subscriber-1
+
+### 1. Pada tutorial ini, kita menggunakan `RwLock<>` untuk melakukan sinkronisasi terhadap `Vec<Notification>`. Jelaskan mengapa hal ini diperlukan untuk kasus ini, dan jelaskan juga mengapa kita tidak menggunakan `Mutex<>`?
+
+Menurut saya, `RwLock<Vec<Notification>>` diperlukan karena data `NOTIFICATIONS` digunakan sebagai shared state yang bisa diakses oleh lebih dari satu request atau thread. Pada Receiver app, notifikasi dapat terus bertambah ketika main app mengirim request baru ke endpoint receiver. Di saat yang sama, receiver app juga bisa membaca seluruh notifikasi untuk ditampilkan ke pengguna. Karena ada kemungkinan proses baca dan tulis terjadi dari beberapa thread, kita membutuhkan mekanisme sinkronisasi agar akses ke `Vec<Notification>` tetap aman.
+
+`RwLock` cocok untuk kasus ini karena pola akses datanya cenderung terdiri dari:
+- **write** saat notifikasi baru ditambahkan
+- **read** saat seluruh notifikasi ingin ditampilkan
+
+Dengan `RwLock`, banyak proses pembacaan bisa berjalan bersamaan selama tidak ada proses penulisan. Ini lebih efisien dibandingkan `Mutex`, karena `Mutex` hanya mengizinkan satu akses dalam satu waktu, baik untuk read maupun write. Jadi, kalau memakai `Mutex`, bahkan beberapa proses baca yang sebenarnya aman dilakukan bersamaan tetap harus antre satu per satu.
+
+Karena itu, menurut saya `RwLock` lebih tepat untuk kasus ini: kita tetap aman dari race condition, tetapi performa pembacaan juga lebih baik dibandingkan jika memakai `Mutex`.
+
+### 2. Pada tutorial ini, kita menggunakan library eksternal `lazy_static` untuk mendefinisikan `Vec` dan `DashMap` sebagai variabel “static”. Dibandingkan dengan Java, di mana kita bisa memutasi isi static variable melalui static function, mengapa Rust tidak mengizinkan kita melakukan hal tersebut?
+
+Menurut saya, Rust tidak mengizinkan mutasi langsung pada static variable biasa karena Rust sangat ketat dalam menjaga **memory safety** dan **thread safety**. Jika static variable dapat diubah secara bebas dari berbagai tempat seperti di Java, maka akan lebih mudah terjadi data race, terutama dalam program yang berjalan secara konkuren.
+
+Rust ingin memastikan bahwa setiap mutasi terhadap shared state dilakukan secara eksplisit dan aman. Karena itu, data global yang dapat berubah tidak cukup hanya dideklarasikan sebagai `static`, tetapi juga perlu dibungkus dengan mekanisme sinkronisasi yang aman, seperti `RwLock`, `Mutex`, atau struktur concurrent lain seperti `DashMap`.
+
+`lazy_static` membantu karena:
+1. ia memungkinkan inisialisasi data global yang tidak bisa ditentukan sepenuhnya saat compile-time,
+2. ia memberi cara yang aman dan terkontrol untuk membuat shared global state,
+3. ia bekerja dengan struktur sinkronisasi yang sesuai dengan prinsip ownership dan borrowing di Rust.
+
+Berbeda dengan Java yang lebih longgar terhadap mutasi objek static, Rust sengaja membatasi hal ini supaya programmer tidak secara tidak sengaja membuat shared mutable state yang berbahaya. Jadi, menurut saya, alasan utama Rust tidak mengizinkan mutasi static biasa seperti Java adalah untuk menjaga keamanan program, terutama dalam konteks concurrency.
 
 #### Reflection Subscriber-2
